@@ -1,0 +1,377 @@
+{
+  "name": "newsletter",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d2712447-1a8f-459c-b5cf-f9e2e05dff50",
+      "name": "Schedule Trigger",
+      "executeOnce": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://api-football-v1.p.rapidapi.com/v3/fixtures",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "league",
+              "value": "98"
+            },
+            {
+              "name": "season",
+              "value": "2025"
+            },
+            {
+              "name": "date",
+              "value": "={{ $today.format('yyyy-MM-dd') }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-RapidAPI-Key",
+              "value": "80f1173015mshf03207471886ba8p1a5e43jsn0a782c0e1eb1"
+            },
+            {
+              "name": "X-Rapidapi-Host",
+              "value": "api-football-v1.p.rapidapi.com"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        320,
+        -224
+      ],
+      "id": "5f7ab418-1896-4ae7-bda4-c76f39d6c660",
+      "name": "HTTP Request",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "url": "https://api.coingecko.com/api/v3/simple/price",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "bitcoin,ethereum,solana"
+            },
+            {
+              "name": "vs_currencies",
+              "value": "brl"
+            },
+            {
+              "name": "include_24hr_change",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        320,
+        -432
+      ],
+      "id": "9cc84b7e-1154-4a5e-aa63-87b5efb11201",
+      "name": "http cripto"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        160
+      ],
+      "id": "57738051-0f7d-4071-a595-49c1fe596dd6",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "YRjQmV3S1ptNQ4SI",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama-3.1-8b-instant",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        656,
+        192
+      ],
+      "id": "8470a542-737d-4512-a8fc-70ba6757a54e",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "YRjQmV3S1ptNQ4SI",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1264,
+        -32
+      ],
+      "id": "ed86f1b9-daa6-4004-b67c-6c8b53704c1d",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=\"Abaixo está uma lista de notícias sobre elevadores, cada uma com seu respectivo link: {{ $json.noticias.join('\\n') }}\n\nSua tarefa:\n\nEscolha as 3 notícias mais relevantes.\n\nMe devolva os 3 títulos escolhidos mantendo exatamente o link que está ao lado deles.\n\nNão resuma o link, mantenha a URL completa.\"\n\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "\"Você é um curador técnico especializado em transporte vertical. Sua função é analisar uma lista de notícias sobre elevadores e selecionar apenas as 3 que tenham maior impacto tecnológico, inovação ou relevância de mercado. Descarte anúncios de classificados ou notícias irrelevantes.\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        656,
+        -16
+      ],
+      "id": "153569c1-30a0-4c87-a0e1-f1f14f28d5a4",
+      "name": "agente de filtro"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=\"Gere a edição de hoje da nossa newsletter com base nos dados abaixo:[DADOS DE CRIPTO]Bitcoin: R$ {{ $json.bitcoin.brl }} (Variação: {{ $json.bitcoin.brl_24h_change.toFixed(2) }}%)Ethereum: R$ {{ $json.ethereum.brl }}Solana: R$ {{ $json.solana.brl }}[NOTÍCIAS DE ELEVADORES]{{ $json.output }}INSTRUÇÕES DE ESTILO:Crie um título criativo para a edição de hoje.No bloco de Cripto, use emojis de foguete (🚀) se a variação for positiva ou gráfico caindo (📉) se for negativa.No bloco de Elevadores, use o formato: Título da Notícia.Escreva em português brasileiro com um tom amigável.\"",
+        "options": {
+          "systemMessage": "\"Você é um editor-chefe de uma newsletter matinal premium. Seu objetivo é criar um texto escaneável (fácil de ler rápido). Use títulos em negrito, emojis temáticos e garanta que cada notícia de elevador tenha um https://www.google.com/search?q=link clicável de forma elegante. Separe as seções com uma linha divisória (---).\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        1456,
+        -32
+      ],
+      "id": "c860e9d0-d533-476c-a5f3-8edf2584b76d",
+      "name": "agente redator"
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=elevadores+tecnologia&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        -16
+      ],
+      "id": "2481f610-4861-4602-a355-dbd56e8eeb16",
+      "name": "elevador_news"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2048,
+        -32
+      ],
+      "id": "93290f19-6b14-4ec4-8833-c0ac596e494e",
+      "name": "Send email",
+      "webhookId": "16d73173-396e-4036-a489-d7d95b5a005a",
+      "credentials": {
+        "smtp": {
+          "id": "GlU4BY4w6udRqzM8",
+          "name": "SMTP cspcjapan"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "title",
+              "renameField": true,
+              "outputFieldName": "news"
+            },
+            {
+              "fieldToAggregate": "link"
+            },
+            {
+              "fieldToAggregate": "content"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        528,
+        -16
+      ],
+      "id": "f1336671-d4b9-4ecf-b7ce-cee71520e965",
+      "name": "Aggregate"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "http cripto",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "elevador_news",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http cripto": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "agente redator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "agente de filtro",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "agente redator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "agente de filtro": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "elevador_news": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "agente redator": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "agente de filtro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c15a5b40-cdf5-4991-bc72-de5d72ccb533",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1e0db60edd19a86f736b86e79edaf329749afd2a6ca2c12f8932869c3dd4da25"
+  },
+  "id": "FQfHEgYGNHuUUHRe",
+  "tags": []
+}
